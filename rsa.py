@@ -2,22 +2,11 @@ import math
 import random
 from Crypto.Util.number import getPrime
 
-# --- 1.1 Generación de números primos  ---
-def generar_primos_prueba():
-    print("--- 1.1 Números Primos Aleatorios ---")
-    tamaños = [16, 32, 512, 2048]
-    for size in tamaños:
-        # Genera un número primo para cada tamaño especificado [cite: 10, 11, 12, 13, 14]
-        primo = getPrime(size)
-        print(f"Primo de {size} bits: {primo}")
-    print("\n")
-
-# --- 1.2 Generación de claves para Schoolbook RSA [cite: 16] ---
+# =====================================================================
+# 1. GENERACIÓN DE CLAVES Y COPIADO A ARCHIVOS
+# =====================================================================
 def generar_claves_rsa(bits):
-    """
-    Recibe como parámetro el tamaño en bits de los números primos[cite: 19].
-    """
-    # Ambos primos del mismo tamaño pero diferentes 
+    """Genera el par de claves asegurando las condiciones de la práctica."""
     p = getPrime(bits)
     q = getPrime(bits)
     while p == q:
@@ -26,81 +15,135 @@ def generar_claves_rsa(bits):
     n = p * q
     phi_n = (p - 1) * (q - 1)
     
-    # Elegir 'e' al azar [cite: 22]
     while True:
         e = random.randrange(2, phi_n)
-        # NO usar e=3 o e=65537, y comprobar que gcd(e, phi(n)) == 1 
         if e not in (3, 65537) and math.gcd(e, phi_n) == 1:
             break
             
-    # Función de Python (pow) para encontrar el inverso multiplicativo de e 
     d = pow(e, -1, phi_n)
-    
     return (e, n), d
 
-def prueba_generacion_claves():
-    print("--- 1.2 Generación de Claves RSA ---")
-    bits = int(input("Ingresa el tamaño de los primos en bits (ej. 32, 512, 2048)[cite: 20]: "))
+def guardar_claves_en_archivos(public_key, d):
+    """Guarda la clave pública y privada en archivos txt separados."""
+    e, n = public_key
+    
+    # Guardar clave pública (e y n en líneas separadas)
+    with open("publica.txt", "w") as f:
+        f.write(f"{e}\n{n}")
+        
+    # Guardar clave privada (d y n en líneas separadas)
+    with open("privada.txt", "w") as f:
+        f.write(f"{d}\n{n}")
+        
+    print("\n[+] Archivos de texto generados exitosamente:")
+    print("    -> 'publica.txt' (Contiene e y n)")
+    print("    -> 'privada.txt' (Contiene d y n)")
+
+def menu_generar_claves():
+    print("\n--- 1. Generación de Claves RSA ---")
+    bits = int(input("Ingresa el tamaño de los primos en bits (32, 512, 2048): "))
     public_key, private_d = generar_claves_rsa(bits)
     
-    print("\n[+] Claves generadas exitosamente:")
-    print(f"Clave Pública (e, n): {public_key}") # Imprimir clave pública [cite: 25]
-    print(f"Exponente Privado d: {private_d}\n")   # Imprimir exponente privado [cite: 26]
-
-    # --- 2.2 Cifrado usando RSA [cite: 31] ---
-def cifrar_rsa():
-    print("--- 2.2 Cifrar Mensaje (TBC16) ---")
-    # a) Pedir al usuario la clave pública (e, n) [cite: 33]
-    e = int(input("Ingresa la clave pública 'e': "))
-    n = int(input("Ingresa la clave pública 'n': "))
+    print(f"\n[+] Clave Pública generada: (e={public_key[0]}, n={public_key[1]})")
+    print(f"[+] Exponente Privado d generado: {private_d}")
     
-    # b) Generar número r aleatorio de 16 bits e imprimirlo [cite: 34]
+    guardar_claves_en_archivos(public_key, private_d)
+
+
+# =====================================================================
+# 2. CIFRADO LEYENDO LA LLAVE PÚBLICA DESDE UN ARCHIVO
+# =====================================================================
+def cifrar_rsa_desde_archivo():
+    print("\n--- 2. Cifrar Mensaje (TBC16) desde Archivo ---")
+    archivo_pub = input("Nombre del archivo de clave pública a usar (ej. 'publica.txt'): ").strip()
+    
+    try:
+        with open(archivo_pub, "r") as f:
+            lineas = f.read().splitlines()
+            e = int(lineas[0])
+            n = int(lineas[1])
+        print(f"[+] Clave pública cargada correctamente de {archivo_pub}")
+    except FileNotFoundError:
+        print(f"[-] Error: No se encontró el archivo '{archivo_pub}'.")
+        return
+    except Exception as err:
+        print(f"[-] Error al procesar el archivo: {err}")
+        return
+
+    # Generar r aleatorio de 16 bits
     r = random.getrandbits(16)
-    print(f"\nNúmero aleatorio generado (r): {r}")
+    print(f"Número aleatorio de 16 bits generado (r): {r}")
     
-    # c) Cifrar r: c = r^e mod n [cite: 36]
+    # Cifrar usando la clave pública: c = r^e mod n
     c = pow(r, e, n)
-    # Imprimir el valor de c como entero [cite: 37]
-    print(f"Texto cifrado (c): {c}\n")
+    print(f"Texto cifrado resultante (c): {c}")
+    
+    # Guardar el texto cifrado en un archivo para compartirlo fácilmente
+    with open("cifrado.txt", "w") as f:
+        f.write(str(c))
+    print("[+] El texto cifrado se ha exportado a 'cifrado.txt'")
 
-# --- 2.3 Descifrado usando RSA [cite: 38] ---
-def descifrar_rsa():
-    print("--- 2.3 Descifrar Mensaje ---")
-    # a) Pedir al usuario la clave privada d y n [cite: 41]
-    d = int(input("Ingresa tu exponente privado 'd': "))
-    n = int(input("Ingresa el módulo 'n': "))
+
+# =====================================================================
+# 3. DESCIFRADO LEYENDO LA LLAVE PRIVADA DESDE UN ARCHIVO
+# =====================================================================
+def descifrar_rsa_desde_archivo():
+    print("\n--- 3. Descifrar Mensaje desde Archivo ---")
+    archivo_priv = input("Nombre del archivo de tu clave privada (por defecto 'privada.txt'): ").strip()
     
-    # b) Pedir al usuario el valor de c [cite: 42]
-    c = int(input("Ingresa el texto cifrado 'c' a descifrar: "))
-    
-    # c) Descifrar c: m = c^d mod n [cite: 43]
+    try:
+        with open(archivo_priv, "r") as f:
+            lineas = f.read().splitlines()
+            d = int(lineas[0])
+            n = int(lineas[1])
+        print(f"[+] Clave privada cargada correctamente de {archivo_priv}")
+    except FileNotFoundError:
+        print(f"[-] Error: No se encontró el archivo '{archivo_priv}'.")
+        return
+    except Exception as err:
+        print(f"[-] Error al procesar el archivo: {err}")
+        return
+
+    # Opción de leer el criptograma desde archivo o consola
+    opcion_c = input("¿Deseas leer el texto cifrado 'c' desde un archivo .txt? (s/n): ").strip().lower()
+    if opcion_c == 's':
+        archivo_c = input("Nombre del archivo cifrado (ej. 'cifrado.txt'): ").strip()
+        try:
+            with open(archivo_c, "r") as f:
+                c = int(f.read().strip())
+            print(f"[+] Texto cifrado cargada: c = {c}")
+        except Exception as err:
+            print(f"[-] Error al leer el archivo cifrado: {err}")
+            return
+    else:
+        c = int(input("Ingresa el valor de 'c' manualmente: "))
+
+    # Descifrar usando la clave privada: m = c^d mod n
     m = pow(c, d, n)
-    
-    # Imprimir el valor recuperado [cite: 44]
-    print(f"\nMensaje descifrado (m): {m}\n")
+    print(f"\n[+] Mensaje original recuperado exitosamente (m): {m}\n")
 
-    
+
+# =====================================================================
+# MENÚ INTERACTIVO PRINCIPAL
+# =====================================================================
 if __name__ == "__main__":
     while True:
-        print("====== PRÁCTICA 13: SCHOOLBOOK RSA ======")
-        print("1. Imprimir números primos aleatorios (16, 32, 512, 2048 bits)")
-        print("2. Generar par de claves RSA")
-        print("3. Cifrar un mensaje")
-        print("4. Descifrar un mensaje")
-        print("5. Salir")
+        print("====== LAB 13: RSA CON PERSISTENCIA EN TEXTO ======")
+        print("1. Generar llaves y guardarlas en archivos (.txt)")
+        print("2. Cifrar leyendo clave pública desde un archivo")
+        print("3. Descifrar leyendo clave privada desde un archivo")
+        print("4. Salir")
         
-        opcion = input("Selecciona una opción: ")
+        opcion = input("Selecciona una opción: ").strip()
         
         if opcion == '1':
-            generar_primos_prueba()
+            menu_generar_claves()
         elif opcion == '2':
-            prueba_generacion_claves()
+            cifrar_rsa_desde_archivo()
         elif opcion == '3':
-            cifrar_rsa()
+            descifrar_rsa_desde_archivo()
         elif opcion == '4':
-            descifrar_rsa()
-        elif opcion == '5':
-            print("Saliendo...")
+            print("Saliendo del programa...")
             break
         else:
-            print("Opción no válida.\n")
+            print("Opción no válida. Intenta de nuevo.\n")
