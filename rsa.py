@@ -6,7 +6,7 @@ from Crypto.Util.number import getPrime
 # 1. GENERACIÓN DE CLAVES Y COPIADO A ARCHIVOS
 # =====================================================================
 def generar_claves_rsa(bits):
-    """Genera el par de claves asegurando las condiciones de la práctica."""
+    """Genera el par de claves RSA (pública y privada)"""
     p = getPrime(bits)
     q = getPrime(bits)
     while p == q:
